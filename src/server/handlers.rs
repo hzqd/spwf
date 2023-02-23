@@ -1,21 +1,28 @@
-use std::sync::Arc;
+use std::{sync::Arc, collections::HashMap};
 use aoko::{no_std::{pipelines::tap::Tap, functions::{ext::Utf8Ext, fun::s as str, monoid::{StrDot, NotMonoid}}}, val};
 use tokio::{net::TcpStream, io::AsyncWriteExt, sync::Mutex, fs};
-use crate::{SharedData, http::response::{Response, HttpStatus, ContentType}};
+use crate::{SharedData, http::{response::{Response, HttpStatus, ContentType}, request::Request}};
 
 pub struct Index;
 pub struct NotFound;
 pub struct VisitCount;
+pub struct Echo<'a> {
+    pub path_buf: &'a [u8]
+}
 pub struct StaticFile<'a> {
-    pub puth_buf: &'a [u8]
+    pub path_buf: &'a [u8]
 }
 
+#[macro_export]
 macro_rules! headers {
     ($ct:expr, $body:expr) => {
-        [   ("Content-Type".into(), $ct.to_string()),
-            ("Content-Length".into(), $body.len().to_string())
+        [   ("Content-Type", $ct.to_string()),
+            ("Content-Length", $body.len().to_string())
         ].into()
     };
+}
+fn headers(body: &[u8]) -> HashMap<&str, String> {
+    headers!(ContentType::Html, body)
 }
 
 macro_rules! exe_stream {
@@ -34,7 +41,7 @@ impl Handler for Index {
         let res_byt = Response::new()
             .tap_mut(|r| {
                 r.body = "Index Page".as_bytes();
-                r.headers = headers!(ContentType::Html, r.body);
+                r.headers = headers(r.body);
             }).as_bytes();
 
         exe_stream!(stream, res_byt);
@@ -50,7 +57,7 @@ impl Handler for VisitCount {
             res_byt = Response::new()
                 .tap_mut(|r| {
                     r.body = body.as_bytes();
-                    r.headers = headers!(ContentType::Html, r.body);
+                    r.headers = headers(r.body);
                 }).as_bytes();
         }
         exe_stream!(stream, res_byt);
@@ -63,7 +70,7 @@ impl Handler for NotFound {
             .tap_mut(|r| {
                 r.status = HttpStatus::NotFound;
                 r.body = "404 Not Found".as_bytes();
-                r.headers = headers!(ContentType::Html, r.body)
+                r.headers = headers(r.body)
             }).as_bytes();
 
         exe_stream!(stream, res_byt);
@@ -72,7 +79,7 @@ impl Handler for NotFound {
 
 impl Handler for StaticFile<'_> {
     async fn handle(&self, stream: &mut TcpStream, shared_data: Arc<Mutex<SharedData>>) {
-        for s in self.puth_buf.to_str_lossy().split_whitespace() {
+        for s in self.path_buf.to_str_lossy().split_whitespace() {
             if s.contains("/static") {
                 val! {
                     path = s.split('/').enumerate().filter(|&(u, _)| u != 0 && u != 1).map(|(_, s)| s).collect::<String>();
@@ -113,5 +120,18 @@ impl Handler for StaticFile<'_> {
                 Html
             }
         }
+    }
+}
+
+impl Handler for Echo<'_> {
+    async fn handle(&self, stream: &mut TcpStream, _shared_data: Arc<Mutex<SharedData>>) {
+        let req: Request = self.path_buf.into();
+
+        let res = Response::new().tap_mut(|r| {
+            r.body = req.parse_queries().get("content").unwrap_or(&"Need some argument").as_bytes();
+            r.headers = headers(r.body);
+        }).as_bytes();
+
+        exe_stream!(stream, res);
     }
 }

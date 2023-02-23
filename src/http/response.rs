@@ -5,7 +5,7 @@ use aoko::no_std::pipelines::pipe::Pipe;
 pub struct Response<'a> {
     pub version: HttpVersion,
     pub status: HttpStatus,
-    pub headers: HashMap<String, String>,
+    pub headers: HashMap<&'a str, String>,
     pub body: &'a [u8],
 }
 
@@ -111,6 +111,7 @@ impl Display for ContentType {
 #[cfg(test)]
 mod test {
     use aoko::{val, var, no_std::{functions::{fun::s, ext::Utf8Ext}, pipelines::tap::Tap}};
+    use crate::headers;
     use super::*;
 
     #[test]
@@ -137,10 +138,7 @@ mod test {
             r.status = status;
             r.version = version;
             r.body = content.as_bytes();
-            r.headers = [
-                ("Content-Type".into(), ContentType::Html.to_string()),
-                ("Content-Length".into(), content_length)
-            ].into();
+            r.headers = headers!(ContentType::Html, content_length);
         }).as_bytes();
         
         assert_eq!(expected.to_str(), byt.to_str());

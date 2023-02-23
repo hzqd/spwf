@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use aoko::{standard::{functions::ext::StdAnyExt, asynchronies::tokio::AsyncExt}, no_std::functions::ext::Utf8Ext};
-use spwf::{SharedData, server::handlers::{Index, Handler, StaticFile, VisitCount, NotFound}};
+use spwf::{SharedData, server::handlers::{Index, Handler, StaticFile, VisitCount, NotFound, Echo}};
 use tokio::{net::{TcpListener, TcpStream}, io::{AsyncReadExt}, sync::Mutex};
 
 #[tokio::main]
@@ -18,7 +18,7 @@ async fn main() {
             let buf = &mut [0; 1024];
 
             stream.read(buf).await.unwrap();
-            buf.to_str_lossy().echo();
+            // buf.to_str_lossy().echo();  // 打印请求信息
 
             route(&mut stream, buf, data).await;
         });
@@ -31,10 +31,12 @@ async fn route(stream: &mut TcpStream, buf: &[u8], shared_data: Arc<Mutex<Shared
         Index.handle(stream, shared_data).await;
     } else if buf.starts_with(b"GET /static") {
         // Static file
-        StaticFile { puth_buf: buf }.handle(stream, shared_data).await;
+        StaticFile { path_buf: buf }.handle(stream, shared_data).await;
     } else if buf.starts_with(b"GET /count") {
         // Visit count
         VisitCount.handle(stream, shared_data).await
+    } else if buf.starts_with(b"GET /echo") {
+        Echo { path_buf: buf }.handle(stream, shared_data).await;
     } else {
         NotFound.handle(stream, shared_data).await;
     }
