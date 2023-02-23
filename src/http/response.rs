@@ -22,9 +22,9 @@ impl<'a> Response<'a> {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum HttpVersion {
-    V1_1,
+    V1_1, Invalid
 }
 
 impl Display for HttpVersion {
@@ -34,6 +34,18 @@ impl Display for HttpVersion {
 
         match self {
             V1_1 => write("HTTP/1.1"),
+            Invalid => write("Invalid http version"),
+        }
+    }
+}
+
+impl From<&str> for HttpVersion {
+    fn from(version: &str) -> Self {
+        use HttpVersion::*;
+
+        match version {
+            "HTTP/1.1" => V1_1,
+            _ => Invalid
         }
     }
 }

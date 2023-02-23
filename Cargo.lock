@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "aoko"
-version = "0.3.0-alpha.22"
+version = "0.3.0-alpha.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d62e2d3bd642756a180f5eebf18c9878ea353004e982672b028c2318b8256929"
+checksum = "e6a4111a3e4339b7e5a74ebcb3058979d5b5e1c081b9903df36a49e184b164aa"
 dependencies = [
  "itertools",
  "minstant",
